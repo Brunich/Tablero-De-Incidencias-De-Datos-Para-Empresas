@@ -187,3 +187,6 @@ html[data-motion=paused] .shp *{animation-play-state:paused!important}
 }
 .sh-summary .sh-proofs li{grid-template-columns:1fr}
 .sh-summary .sh-proofs li small{grid-column:auto}
+.sh-speed{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:10px 0 0;font-size:14px;color:var(--muted,#b9b2c8)}
+.sh-speed b{color:var(--text,#eee)}.sh-speed svg{color:#b8a4ec}
+.sh-speed em{font-style:normal;font-size:12.5px;padding:2px 8px;border-radius:99px;background:#ffffff0d}

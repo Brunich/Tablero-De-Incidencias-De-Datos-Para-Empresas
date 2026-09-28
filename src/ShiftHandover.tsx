@@ -5,7 +5,7 @@ import './shift-handover.css';
 // Entrega de turno: tablero de incidencias de calidad (abierta → en curso → cerrada) con bitácora tipo consola.
 // Sólo se cierra con responsable y foto de evidencia; cada severidad tiene su tiempo máximo (SLA)
 // y al final sale el resumen para el siguiente turno. Se guarda en este navegador.
-import { OWNERS, SEV_EN, RANK, SLA, H, sample, sampleLog, shiftNow, canMove, pendingOf, nextId, validLot, summaryText, isLate } from './turno-logic';
+import { closeStats, exportRows, fmtHours, OWNERS, SEV_EN, RANK, SLA, H, sample, sampleLog, shiftNow, canMove, pendingOf, nextId, validLot, summaryText, isLate } from './turno-logic';
 import type { Status, Sev, Incident, Log } from './turno-logic';
 const KEY = 'bruno-turno-v3';
 const load = (): { items: Incident[]; log: Log[] } => { try { const v = JSON.parse(localStorage.getItem(KEY) ?? ''); if (Array.isArray(v.items)) return v; } catch { /* ejemplo */ } const items = sample(); return { items, log: sampleLog(items) }; };
@@ -70,6 +70,12 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
  const late = pending.filter(i => isLate(i)).length;
  const shift = shiftNow(now);
  const closedNow = items.filter(i => i.status === 'closed');
+ const stats = closeStats(items);
+ async function exportExcel() {
+  const XLSX = await import('xlsx'); const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exportRows(items, es)), t('Incidencias', 'Incidents'));
+  XLSX.writeFile(wb, `incidencias_${new Date().toISOString().slice(0, 7)}.xlsx`);
+ }
 
  // Mover una incidencia de columna, con las mismas reglas que el formulario.
  function move(i: Incident, to: Status) {
@@ -80,7 +86,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
    note(i.id, ok.why === 'evidence' ? t('no se puede cerrar: falta evidencia', 'cannot close: no evidence') : to === 'closed' ? t('no se puede cerrar: falta responsable', 'cannot close: no owner') : t('asigna un responsable para empezarla', 'assign an owner to start it'), 'err');
    return;
   }
-  patch(i.id, { status: to });
+  patch(i.id, { status: to, closedAt: to === 'closed' ? Date.now() : undefined });
   note(i.id, to === 'closed' ? t(`cerrada por ${i.owner} con evidencia`, `closed by ${i.owner} with evidence`) : to === 'doing' ? (i.status === 'closed' ? t('reabierta', 'reopened') : t('en curso', 'in progress')) : t('regresó a abiertas', 'back to open'), to === 'closed' ? 'ok' : 'move');
   if (to === 'closed') setOpenId(null);
  }
@@ -109,6 +115,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
   </header>
 
   <dl className="sh-kpis">{counts.map(([k, name, n]) => <div key={k} className={`k-${k}`}><dt>{name}</dt><dd key={n}>{String(n).padStart(2, '0')}</dd></div>)}</dl>
+  {stats.avg !== null && <p className="sh-speed"><Clock size={16} weight="fill" aria-hidden="true"/>{t('Cierre promedio', 'Average close')} <b>{fmtHours(stats.avg)}</b><span>{t(`${stats.onTime} de ${stats.n} dentro de tiempo`, `${stats.onTime} of ${stats.n} on time`)}</span>{stats.bySev.filter(([, h]) => h !== null).map(([s, h]) => <em key={s}>{es ? s : SEV_EN[s]} {fmtHours(h!)}</em>)}</p>}
 
   <form className="sh-new" onSubmit={add}>
    <label>{t('Línea', 'Line')}<select value={draft.line} onChange={e => setDraft({ ...draft, line: e.target.value })}>{['L1', 'L2', 'L3'].map(l => <option key={l}>{l}</option>)}</select></label>
@@ -177,8 +184,9 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
 
   <div className="sh-hand">
    <button type="button" className="sh-go" onClick={() => { setHanded(new Date().toLocaleTimeString(es ? 'es-MX' : 'en-US', { hour: '2-digit', minute: '2-digit' })); setCopied(false); note('TURNO', t(`entregado con ${pending.length} pendientes`, `handed over with ${pending.length} open`), 'ok'); }}>{t('Entregar turno', 'Hand over shift')}<ArrowRight size={18}/></button>
+   <button type="button" className="sh-reset" onClick={() => void exportExcel()}>{t('Exportar Excel', 'Export Excel')}</button>
    <button type="button" className="sh-reset" onClick={() => { const items = sample(); setState({ items, log: sampleLog(items) }); setHanded(null); setOpenId(null); }}>{t('Volver al ejemplo', 'Reset sample')}</button>
-   <span className="sh-tip">{t('Arrastra las tarjetas o usa su botón para moverlas; ábrelas para asignar y adjuntar la foto.', 'Drag cards or use their button to move them; open them to assign and attach the photo.')}</span>
+   <span className="sh-tip">{t('Arrastra o usa el botón de cada tarjeta.', 'Drag cards or use their button.')}</span>
    {handed && <div className="sh-summary" role="status">
     <header><strong>{t(`Para el turno ${shift.next} · ${handed}`, `For the next shift · ${handed}`)}</strong><span>{t(`${pending.length} pendientes`, `${pending.length} open`)}{orphan ? t(` · ${orphan} sin responsable`, ` · ${orphan} without owner`) : ''}{late ? t(` · ${late} fuera de tiempo`, ` · ${late} overdue`) : ''}</span></header>
     <ol>{pending.map((i, n) => <li key={i.id} style={{ ['--i' as string]: n }} className={i.owner ? '' : 'no-owner'}><span className={`sh-sev sev-${RANK[i.sev]}`}><SevIcon s={i.sev}/>{es ? i.sev : SEV_EN[i.sev]}</span><b>{i.defect}</b><small>{i.id} · {i.line} · {i.owner || t('sin responsable', 'no owner')}{i.action ? ` · ${i.action}` : ''}</small></li>)}</ol>
