@@ -21,7 +21,7 @@ Las incidencias de calidad pasan de un turno a otro con responsable, evidencia y
 | Archivo | Qué hace |
 | --- | --- |
 | `src/turno-logic.ts` | Las reglas del tablero (`canMove`), el SLA por severidad, los turnos de 8 horas y el texto del resumen. |
-| `src/ShiftHandover.tsx` | El tablero: arrastrar entre columnas, reloj del turno, foto de evidencia, bitácora y el resumen para el siguiente turno. |
+| `src/ShiftHandover.tsx` | El tablero: arrastrar o mover con un botón (pestañas en celular), filtros por línea y severidad, reloj del turno, foto de evidencia, bitácora y la hoja de entrega para imprimir o guardar en PDF. |
 
 La lógica está separada de la interfaz, así se prueba sin navegador (`tests/`).
 

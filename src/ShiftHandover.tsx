@@ -47,6 +47,12 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
  const [drag, setDrag] = useState<string | null>(null);
  const [over, setOver] = useState<Status | null>(null);
  const [shake, setShake] = useState<string | null>(null);
+ // Celular: una columna a la vista (pestañas). Filtros por línea y severidad, y «ver más» con muchas incidencias.
+ const [tab, setTab] = useState<Status>('open');
+ const [fLine, setFLine] = useState('');
+ const [fSev, setFSev] = useState<Sev | ''>('');
+ const [more, setMore] = useState<Status[]>([]);
+ const PER_COL = 6;
  const file = useRef<HTMLInputElement>(null), target = useRef<string>(''), consoleEnd = useRef<HTMLOListElement>(null);
  const flip = useFlip(items.map(i => i.id + i.status).join());
  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* sin espacio: sigue en memoria */ } }, [state]);
@@ -63,6 +69,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
  const orphan = pending.filter(i => !i.owner).length;
  const late = pending.filter(i => isLate(i)).length;
  const shift = shiftNow(now);
+ const closedNow = items.filter(i => i.status === 'closed');
 
  // Mover una incidencia de columna, con las mismas reglas que el formulario.
  function move(i: Incident, to: Status) {
@@ -114,14 +121,21 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
   <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={e => { void attach(e.target.files?.[0]); e.target.value = ''; }}/>
 
   <div className="sh-work">
-   <div className="sh-board">
+   <div className="sh-filters" role="group" aria-label={t('Filtrar incidencias', 'Filter incidents')}>
+    {['', 'L1', 'L2', 'L3'].map(l => <button type="button" key={l || 'all'} aria-pressed={fLine === l} onClick={() => setFLine(l)}>{l || t('Todas las líneas', 'All lines')}</button>)}
+    <span aria-hidden="true"/>
+    {(['', 'Crítica', 'Mayor', 'Menor'] as (Sev | '')[]).map(v => <button type="button" key={v || 'any'} aria-pressed={fSev === v} className={v ? `sev-${RANK[v]}` : ''} onClick={() => setFSev(v)}>{v ? (es ? v : SEV_EN[v]) : t('Toda severidad', 'Any severity')}</button>)}
+   </div>
+   <div className="sh-coltabs" role="tablist" aria-label={t('Columna', 'Column')}>{(['open', 'doing', 'closed'] as Status[]).map(c => <button type="button" role="tab" key={c} aria-selected={tab === c} className={`tab-${c}`} onClick={() => setTab(c)}>{label[c]}<b>{items.filter(i => i.status === c && (!fLine || i.line === fLine) && (!fSev || i.sev === fSev)).length}</b></button>)}</div>
+   <div className="sh-board" data-tab={tab}>
     {(['open', 'doing', 'closed'] as Status[]).map(col => {
-     const list = items.filter(i => i.status === col).sort((a, b) => RANK[a.sev] - RANK[b.sev] || a.at - b.at);
+     const all = items.filter(i => i.status === col && (!fLine || i.line === fLine) && (!fSev || i.sev === fSev)).sort((a, b) => col === 'closed' ? b.at - a.at : RANK[a.sev] - RANK[b.sev] || a.at - b.at); // cerradas: lo más reciente arriba
+     const list = more.includes(col) ? all : all.slice(0, PER_COL);
      return <section key={col} className={`sh-col c-${col}${over === col ? ' is-over' : ''}`} aria-label={label[col]}
       onDragOver={e => { if (drag) { e.preventDefault(); setOver(col); } }} onDragLeave={() => setOver(o => o === col ? null : o)}
       onDrop={e => { e.preventDefault(); setOver(null); const i = items.find(x => x.id === drag); if (i) move(i, col); setDrag(null); }}>
-      <h4><i aria-hidden="true"/>{label[col]}<span key={list.length}>{list.length}</span></h4>
-      {!list.length && <p className="sh-empty">{col === 'closed' ? t('Nada cerrado todavía.', 'Nothing closed yet.') : t('Suelta aquí una incidencia.', 'Drop an incident here.')}</p>}
+      <h3><i aria-hidden="true"/>{label[col]}<span key={all.length}>{all.length}</span></h3>
+      {!all.length && <p className="sh-empty">{col === 'closed' ? t('Nada cerrado todavía.', 'Nothing closed yet.') : t('Suelta aquí una incidencia.', 'Drop an incident here.')}</p>}
       {list.map(i => {
        const open = openId === i.id, pct = Math.min(1, age(i) / SLA[i.sev]), overdue = col !== 'closed' && pct >= 1;
        return <article key={i.id} ref={flip(i.id)} className={`sh-card sev-${RANK[i.sev]}${open ? ' is-open' : ''}${overdue ? ' is-late' : ''}${shake === i.id ? ' is-shake' : ''}${drag === i.id ? ' is-drag' : ''}`}
@@ -133,6 +147,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
          {col !== 'closed' && <span className={`sh-sla${overdue ? ' late' : ''}`}><Clock size={13}/><span className="sh-sla-bar"><i style={{ width: `${pct * 100}%` }}/></span><em>{overdue ? t(`fuera de tiempo · ${ago(i.at)}`, `overdue · ${ago(i.at)}`) : `${ago(i.at)} / ${SLA[i.sev]} h`}</em></span>}
          <span className="sh-who">{i.owner ? <i title={i.owner}>{i.owner.replace(/[^A-ZÁÉÍÓÚÑ]/g, '').slice(0, 2)}</i> : <em>{t('sin responsable', 'no owner')}</em>}{i.owner && <small>{i.owner}</small>}{i.photo && <Camera className="sh-cam" size={16} weight="fill" aria-label={t('Con evidencia', 'With evidence')}/>}</span>
         </button>
+        {!open && col !== 'closed' && <button type="button" className={`sh-next to-${col === 'open' ? 'doing' : 'closed'}`} onClick={() => move(i, col === 'open' ? 'doing' : 'closed')}>{col === 'open' ? t('Pasar a en curso', 'Move to in progress') : t('Cerrar', 'Close')}<ArrowRight size={14} weight="bold"/></button>}
         {open && col !== 'closed' && <div className="sh-edit">
          <label>{t('Responsable', 'Owner')}<select value={i.owner} onChange={e => { const o = e.target.value; patch(i.id, { owner: o, status: o ? 'doing' : 'open' }); note(i.id, o ? t(`asignada a ${o} · en curso`, `assigned to ${o} · in progress`) : t('sin responsable', 'unassigned'), 'move'); }}><option value="">{t('Sin asignar', 'Unassigned')}</option>{OWNERS.map(o => <option key={o}>{o}</option>)}</select></label>
          <label>{t('Siguiente acción', 'Next action')}<input value={i.action} placeholder={t('¿Qué sigue?', 'What’s next?')} onChange={e => patch(i.id, { action: e.target.value })} onBlur={e => e.target.value && note(i.id, `${t('acción', 'action')}: ${e.target.value}`, 'info')}/></label>
@@ -146,6 +161,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
         {open && col === 'closed' && <div className="sh-edit"><p className="sh-closed">{i.owner} · {i.action || t('sin nota', 'no note')}</p>{i.photo && i.photo !== 'demo' && <img className="sh-proof" src={i.photo} alt={t('Evidencia', 'Evidence')}/>}<button type="button" onClick={() => move(i, 'doing')}>{t('Reabrir', 'Reopen')}</button></div>}
        </article>;
       })}
+      {all.length > PER_COL && <button type="button" className="sh-more" onClick={() => setMore(m => m.includes(col) ? m.filter(x => x !== col) : [...m, col])}>{more.includes(col) ? t('Ver menos', 'Show fewer') : t(`Ver ${all.length - PER_COL} más`, `Show ${all.length - PER_COL} more`)}</button>}
      </section>;
     })}
    </div>
@@ -162,12 +178,14 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
   <div className="sh-hand">
    <button type="button" className="sh-go" onClick={() => { setHanded(new Date().toLocaleTimeString(es ? 'es-MX' : 'en-US', { hour: '2-digit', minute: '2-digit' })); setCopied(false); note('TURNO', t(`entregado con ${pending.length} pendientes`, `handed over with ${pending.length} open`), 'ok'); }}>{t('Entregar turno', 'Hand over shift')}<ArrowRight size={18}/></button>
    <button type="button" className="sh-reset" onClick={() => { const items = sample(); setState({ items, log: sampleLog(items) }); setHanded(null); setOpenId(null); }}>{t('Volver al ejemplo', 'Reset sample')}</button>
-   <span className="sh-tip">{t('Arrastra las tarjetas entre columnas o ábrelas para editarlas.', 'Drag cards between columns or open them to edit.')}</span>
+   <span className="sh-tip">{t('Arrastra las tarjetas o usa su botón para moverlas; ábrelas para asignar y adjuntar la foto.', 'Drag cards or use their button to move them; open them to assign and attach the photo.')}</span>
    {handed && <div className="sh-summary" role="status">
     <header><strong>{t(`Para el turno ${shift.next} · ${handed}`, `For the next shift · ${handed}`)}</strong><span>{t(`${pending.length} pendientes`, `${pending.length} open`)}{orphan ? t(` · ${orphan} sin responsable`, ` · ${orphan} without owner`) : ''}{late ? t(` · ${late} fuera de tiempo`, ` · ${late} overdue`) : ''}</span></header>
     <ol>{pending.map((i, n) => <li key={i.id} style={{ ['--i' as string]: n }} className={i.owner ? '' : 'no-owner'}><span className={`sh-sev sev-${RANK[i.sev]}`}><SevIcon s={i.sev}/>{es ? i.sev : SEV_EN[i.sev]}</span><b>{i.defect}</b><small>{i.id} · {i.line} · {i.owner || t('sin responsable', 'no owner')}{i.action ? ` · ${i.action}` : ''}</small></li>)}</ol>
     {!pending.length && <p>{t('Todo cerrado: turno limpio.', 'Everything closed: clean shift.')}</p>}
-    <div className="sh-send"><button type="button" onClick={copy}>{copied ? t('Copiado', 'Copied') : t('Copiar resumen', 'Copy summary')}</button><a href={`https://wa.me/?text=${encodeURIComponent(summary())}`} target="_blank" rel="noreferrer">{t('Mandar por WhatsApp', 'Send via WhatsApp')}</a></div>
+    {closedNow.length > 0 && <><p className="sh-sum-sub">{t(`Cerradas con evidencia (${closedNow.length})`, `Closed with evidence (${closedNow.length})`)}</p>
+     <ul className="sh-proofs">{closedNow.map(i => <li key={i.id}>{i.photo && i.photo !== 'demo' ? <img src={i.photo} alt={t(`Evidencia de ${i.id}`, `Evidence for ${i.id}`)}/> : <span className="sh-demo-photo">{t('foto', 'photo')}</span>}<b>{i.defect}</b><small>{i.id} · {i.line} · {i.owner}</small></li>)}</ul></>}
+    <div className="sh-send"><button type="button" onClick={() => window.print()}>{t('Imprimir o guardar PDF', 'Print or save PDF')}</button><button type="button" onClick={copy}>{copied ? t('Copiado', 'Copied') : t('Copiar resumen', 'Copy summary')}</button><a href={`https://wa.me/?text=${encodeURIComponent(summary())}`} target="_blank" rel="noreferrer">{t('Mandar por WhatsApp', 'Send via WhatsApp')}</a></div>
    </div>}
   </div>
   <p className="sh-note">{t('Se guarda en este navegador: puedes usarlo en un turno real y tomar las fotos con el celular.', 'It is saved in this browser: you can use it on a real shift and take the photos with your phone.')}</p>
