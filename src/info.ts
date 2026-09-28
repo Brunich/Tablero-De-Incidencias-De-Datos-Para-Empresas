@@ -1,0 +1,8 @@
+import type { Info, Lang } from './Shell';
+
+// Los mismos textos que la página del proyecto en el portafolio.
+export const info = (lang: Lang): Info => {
+ const es = lang === 'es';
+ const project = {id:'turno',pitch:es?'Nada se pierde entre turnos.':'Nothing gets lost between shifts.',slug:'entrega-de-turno',title:es?'Entrega de turno':'Shift handover',kind:es?'Automatización · calidad':'Automation · quality',status:es?'Funcional':'Working',desc:es?'Las incidencias de calidad pasan de un turno a otro con responsable, evidencia y cierre. Nada se queda en un chat.':'Quality incidents move from one shift to the next with an owner, evidence and a closure. Nothing gets lost in a chat.',tags:['React','TypeScript','Automatización','Calidad'],metrics:[['3',es?'estados: abierta, en curso, cerrada':'states: open, in progress, closed'],['0',es?'cierres sin evidencia':'closures without evidence'],['1',es?'clic para entregar el turno':'click to hand over the shift']] as [string,string][],media:'turno',how:es?[['Registra','Cada incidencia queda ligada a su línea y su lote, con severidad.'],['Asigna','Pasa a «en curso» con responsable y siguiente acción; sólo se cierra con foto de evidencia.'],['Entrega','Al final sale el resumen de lo pendiente, ordenado por severidad, listo para copiar o mandar por WhatsApp.']]:[['Log','Each incident is tied to its line and batch, with a severity.'],['Assign','It moves to “in progress” with an owner and next action; it only closes with a photo as evidence.'],['Hand over','At the end, a summary of open work sorted by severity, ready to copy or send via WhatsApp.']],link:'',action:es?'Probarlo':'Try it'};
+ return project;
+};
