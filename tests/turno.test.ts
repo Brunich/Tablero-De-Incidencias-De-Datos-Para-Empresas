@@ -43,3 +43,18 @@ test('el resumen avisa lo que queda sin dueño y fuera de tiempo', () => {
  assert.ok(s.indexOf('INC-232') < s.indexOf('INC-231'));
  assert.match(summaryText(items, false, new Date(now), now), /3 open/);
 });
+
+test('cierre promedio y Excel del mes: horas desde que se registró hasta que se cerró', async () => {
+ const { closeStats, exportRows, fmtHours, sample, H } = await import('../src/turno-logic.ts');
+ const now = Date.now(), items = sample(now);
+ const s = closeStats(items);
+ assert.equal(s.n, 1);
+ assert.ok(Math.abs(s.avg! - 1.6) < 1e-9); // 6.5 h − 4.9 h
+ assert.equal(s.onTime, 1); // Menor: 24 h de SLA
+ assert.equal(fmtHours(1.6), '1 h 36');
+ const late = { ...items[0], status: 'closed' as const, closedAt: items[0].at + 3 * H }; // Crítica: 2 h de SLA
+ assert.equal(closeStats([late]).onTime, 0);
+ const rows = exportRows(items, true);
+ assert.equal(rows.length, items.length + 1);
+ assert.deepEqual(rows.find(r => r[0] === 'INC-226')!.slice(-2), [1.6, 'sí']);
+});
