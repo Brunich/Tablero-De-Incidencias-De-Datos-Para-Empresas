@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Camera, WarningOctagon, Warning, Info, Clock, DotsSixVertical, ArrowRight, TerminalWindow } from '@phosphor-icons/react';
+import { Camera, WarningOctagon, Warning, Info, Clock, DotsSixVertical, ArrowRight, TerminalWindow, Plus, Play, Pause, X } from '@phosphor-icons/react';
 import './shift-handover.css';
 
 // Entrega de turno: tablero de incidencias de calidad (abierta → en curso → cerrada) con bitácora tipo consola.
@@ -47,6 +47,9 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
  const [drag, setDrag] = useState<string | null>(null);
  const [over, setOver] = useState<Status | null>(null);
  const [shake, setShake] = useState<string | null>(null);
+ const [adding, setAdding] = useState(false);
+ // Reproducir: el turno avanza solo, como en la animación de la portada, con las mismas reglas que a mano.
+ const [auto, setAuto] = useState(false);
  // Celular: una columna a la vista (pestañas). Filtros por línea y severidad, y «ver más» con muchas incidencias.
  const [tab, setTab] = useState<Status>('open');
  const [fLine, setFLine] = useState('');
@@ -94,6 +97,7 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
   e.preventDefault();
   if (!draft.defect.trim()) return setErr(t('Escribe el defecto.', 'Write the defect.'));
   if (!validLot(draft.lot)) return setErr(t('El lote son 3 a 5 números.', 'The batch is 3 to 5 digits.'));
+  setAdding(false); setTab('open');
   const id = nextId(items);
   setState(s => ({ items: [{ id, line: draft.line, lot: draft.lot, defect: draft.defect.trim(), sev: draft.sev, status: 'open', owner: '', action: '', photo: '', at: Date.now() }, ...s.items], log: [{ at: Date.now(), id, tone: 'new' as const, text: `${t('registrada', 'logged')} · ${draft.line} · ${t('lote', 'batch')} ${draft.lot} · ${(es ? draft.sev : SEV_EN[draft.sev]).toUpperCase()}` }, ...s.log].slice(0, 40) }));
   setDraft({ ...draft, lot: '', defect: '' }); setErr(''); setHanded(null);
@@ -102,7 +106,18 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
  const summary = () => summaryText(items, es);
  async function copy() { try { await navigator.clipboard.writeText(summary()); setCopied(true); } catch { setCopied(false); } }
  const SevIcon = ({ s }: { s: Sev }) => s === 'Crítica' ? <WarningOctagon size={15} weight="fill"/> : s === 'Mayor' ? <Warning size={15} weight="fill"/> : <Info size={15} weight="fill"/>;
- const counts: [Status | 'crit', string, number][] = [['open', label.open, items.filter(i => i.status === 'open').length], ['doing', label.doing, items.filter(i => i.status === 'doing').length], ['closed', label.closed, items.filter(i => i.status === 'closed').length], ['crit', t('Fuera de tiempo', 'Overdue'), late]];
+ // Un paso del turno: asigna la abierta más grave, adjunta la evidencia de la que va en curso o la cierra.
+ function step() {
+  const doing = items.find(i => i.status === 'doing' && i.owner);
+  if (doing && !doing.photo) { patch(doing.id, { photo: 'demo' }); note(doing.id, t('evidencia adjunta', 'evidence attached'), 'info'); return true; }
+  if (doing) { move(doing, 'closed'); setTab('closed'); return true; }
+  const open = items.filter(i => i.status === 'open').sort((a, b) => RANK[a.sev] - RANK[b.sev] || a.at - b.at)[0];
+  if (!open) return false;
+  const owner = open.owner || OWNERS[(Number(open.id.slice(4)) || 0) % OWNERS.length];
+  patch(open.id, { owner, status: 'doing' }); note(open.id, t(`asignada a ${owner} · en curso`, `assigned to ${owner} · in progress`), 'move'); setTab('doing');
+  return true;
+ }
+ useEffect(() => { if (!auto) return; const id = setTimeout(() => { if (!step()) setAuto(false); }, 1400); return () => clearTimeout(id); }, [auto, items]); // eslint-disable-line react-hooks/exhaustive-deps
 
  return <div className="sh">
   <header className="sh-top">
@@ -114,17 +129,21 @@ export default function ShiftHandover({ lang }: { lang: 'es' | 'en' }) {
    </div>
   </header>
 
-  <dl className="sh-kpis">{counts.map(([k, name, n]) => <div key={k} className={`k-${k}`}><dt>{name}</dt><dd key={n}>{String(n).padStart(2, '0')}</dd></div>)}</dl>
+  <div className="sh-bar">
+   <button type="button" className="sh-add" aria-expanded={adding} onClick={() => setAdding(a => !a)}>{adding ? <X size={16} weight="bold"/> : <Plus size={16} weight="bold"/>}{adding ? t('Cancelar', 'Cancel') : t('Nueva incidencia', 'New incident')}</button>
+   <button type="button" className="sh-auto" aria-pressed={auto} onClick={() => setAuto(a => !a)}>{auto ? <Pause size={16} weight="fill"/> : <Play size={16} weight="fill"/>}{auto ? t('Pausar', 'Pause') : t('Reproducir turno', 'Play the shift')}</button>
+   {late > 0 && <span className="sh-late-chip"><WarningOctagon size={15} weight="fill" aria-hidden="true"/>{t(`${late} fuera de tiempo`, `${late} overdue`)}</span>}
+  </div>
   {stats.avg !== null && <p className="sh-speed"><Clock size={16} weight="fill" aria-hidden="true"/>{t('Cierre promedio', 'Average close')} <b>{fmtHours(stats.avg)}</b><span>{t(`${stats.onTime} de ${stats.n} dentro de tiempo`, `${stats.onTime} of ${stats.n} on time`)}</span>{stats.bySev.filter(([, h]) => h !== null).map(([s, h]) => <em key={s}>{es ? s : SEV_EN[s]} {fmtHours(h!)}</em>)}</p>}
 
-  <form className="sh-new" onSubmit={add}>
+  {adding && <form className="sh-new" onSubmit={add}>
    <label>{t('Línea', 'Line')}<select value={draft.line} onChange={e => setDraft({ ...draft, line: e.target.value })}>{['L1', 'L2', 'L3'].map(l => <option key={l}>{l}</option>)}</select></label>
    <label>{t('Lote', 'Batch')}<input value={draft.lot} inputMode="numeric" placeholder="4480" onChange={e => setDraft({ ...draft, lot: e.target.value })}/></label>
    <label className="grow">{t('Defecto', 'Defect')}<input value={draft.defect} placeholder={t('Ej. soldadura incompleta', 'e.g. incomplete weld')} onChange={e => setDraft({ ...draft, defect: e.target.value })}/></label>
    <fieldset className="sh-sevpick"><legend>{t('Severidad', 'Severity')}</legend>{(['Crítica', 'Mayor', 'Menor'] as Sev[]).map(s => <button type="button" key={s} className={`sev-${RANK[s]}`} aria-pressed={draft.sev === s} onClick={() => setDraft({ ...draft, sev: s })}><SevIcon s={s}/>{es ? s : SEV_EN[s]}</button>)}</fieldset>
    <button type="submit" className="sh-log-it">{t('Registrar', 'Log it')}</button>
    {err && <p className="sh-err" role="alert">{err}</p>}
-  </form>
+  </form>}
   <input ref={file} type="file" accept="image/*" capture="environment" hidden onChange={e => { void attach(e.target.files?.[0]); e.target.value = ''; }}/>
 
   <div className="sh-work">
