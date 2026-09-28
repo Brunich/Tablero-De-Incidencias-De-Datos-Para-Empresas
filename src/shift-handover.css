@@ -190,3 +190,33 @@ html[data-motion=paused] .shp *{animation-play-state:paused!important}
 .sh-speed{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:10px 0 0;font-size:14px;color:var(--muted,#b9b2c8)}
 .sh-speed b{color:var(--text,#eee)}.sh-speed svg{color:#b8a4ec}
 .sh-speed em{font-style:normal;font-size:12.5px;padding:2px 8px;border-radius:99px;background:#ffffff0d}
+
+/* Tanda 3: color propio (azul petróleo con aqua) y la misma distribución que la animación de la portada:
+   tablero arriba, bitácora abajo, y el formulario detrás de un botón. */
+.sh{--open:#f2998f;--doing:#f0c46c;--closed:#6fd3c1;--teal:#62c6d9;background:linear-gradient(180deg,#0f1f28,#0b161d);border-color:#62c6d926}
+.sh-kicker{color:var(--teal)}
+.sh-new,.sh-kpis div{background:#0a151b}
+.sh input,.sh select{background:#071016;border-color:#62c6d933}
+.sh button{background:#152a35;border-color:#62c6d92e}
+.sh .sh-log-it,.sh .sh-go{background:linear-gradient(120deg,var(--closed),var(--teal));color:#05201d}
+.sh-col{background:#62c6d908}
+.sh-card{background:#14262f;border-color:#62c6d91f}
+.sh-card.is-late{background:linear-gradient(180deg,#f2998f14,#14262f 60%)}
+.sh-who i{background:color-mix(in srgb,var(--k) 30%,#14262f)}
+.sh-chips span{background:#62c6d914;color:#cfe3e8}
+.sh-work{grid-template-columns:1fr}
+.sh-console{min-height:0;max-height:230px;background:#061015;border-color:#62c6d926}
+.sh-console header{background:#0b1a21}
+.sh-console time{color:#6f8f99}.sh-console li>span{color:var(--teal)}.sh-console p{color:#d6e6ea}
+.sh-summary{background:#061015}
+.sh-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.sh .sh-add{background:linear-gradient(120deg,var(--closed),var(--teal));border-color:transparent;color:#05201d}
+.sh .sh-auto[aria-pressed=true]{border-color:var(--doing);color:var(--doing)}
+.sh-late-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:#f2998f1f;color:var(--open);font:600 12.5px var(--mono)}
+.sh-new{animation:sh-in .35s cubic-bezier(.16,1,.3,1) both}
+.shp{background:radial-gradient(ellipse 80% 70% at 50% 20%,#18323d,#0a141a 72%)}
+.shp-col.c0{--k:#f2998f}.shp-col.c1{--k:#f0c46c}.shp-col.c2{--k:#6fd3c1}
+.shp-col{background:#62c6d908;border-color:#62c6d91c}
+.shp-card{background:#14262f;border-color:#62c6d926}
+.shp-log{background:#061015;border-color:#62c6d926}
+.sh .sh-card-head{justify-content:stretch;align-content:start}
