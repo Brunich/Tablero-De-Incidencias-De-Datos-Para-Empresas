@@ -10,6 +10,8 @@ Las incidencias de calidad pasan de un turno a otro con responsable, evidencia y
 
 **Pruébalo en vivo:** [bruno-portfolio-azure.vercel.app/proyectos/entrega-de-turno](https://bruno-portfolio-azure.vercel.app/proyectos/entrega-de-turno)
 
+**App Android nativa:** en desarrollo. Tomará la evidencia con la cámara del teléfono y avisará al siguiente turno con notificaciones.
+
 ## Cómo funciona
 
 1. **Registra.** Cada incidencia queda ligada a su línea y su lote, con severidad.
@@ -45,11 +47,6 @@ npm run build   # tipos + build de producción
 ```
 
 Hecho con React 19, TypeScript y Vite. Necesita Node 22 o más nuevo (las pruebas corren TypeScript directo con Node).
-
-## Lo que sigue
-
-- Compartir el tablero entre los celulares del turno (necesita servidor).
-- Exportar el historial del mes a Excel.
 
 ---
 
