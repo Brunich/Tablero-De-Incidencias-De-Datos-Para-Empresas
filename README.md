@@ -1,6 +1,6 @@
 # Entrega de turno
 
-[![CI](https://github.com/Brunich/entrega-de-turno/actions/workflows/ci.yml/badge.svg)](https://github.com/Brunich/entrega-de-turno/actions/workflows/ci.yml)
+[![CI](https://github.com/Brunich/Tablero-De-Incidencias-De-Datos-Para-Empresas/actions/workflows/ci.yml/badge.svg)](https://github.com/Brunich/Tablero-De-Incidencias-De-Datos-Para-Empresas/actions/workflows/ci.yml)
 
 *Nada se pierde entre turnos.*
 
@@ -47,6 +47,10 @@ npm run build   # tipos + build de producción
 ```
 
 Hecho con React 19, TypeScript y Vite. Necesita Node 22 o más nuevo (las pruebas corren TypeScript directo con Node).
+
+## Licencia
+
+[MIT](LICENSE). Úsalo, cámbialo y compártelo; sólo conserva el aviso de copyright.
 
 ---
 
